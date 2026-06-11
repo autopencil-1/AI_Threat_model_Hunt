@@ -79,13 +79,15 @@ Stage 2+ and gated behind an offline decision spike (`eval/`, not yet built). St
 exist only as `NotImplementedError` stubs to mark intent.
 
 **Commands** (run from the project root):
-- `python -m pytest -q` — full suite (53 tests; pure-logic critics + tree-value propagation + STIX-loader + checkpointer + injection-boundary + spike + offline graph smoke tests). `pythonpath=["src","."]` is set in `pyproject.toml`.
+- `python -m pytest -q` — full suite (63 tests; critics + tree-values + STIX-loader + checkpointer + injection-boundary + Threat-Dragon importer + spike + FCR + offline graph smoke tests). `pythonpath=["src","."]` is set in `pyproject.toml`.
 - `python -m pytest tests/test_attack_tree_critic.py -q` — a single test file.
 - `ruff check src tests eval examples scripts` — lint (F + I rules; config in `pyproject.toml`). CI (`.github/workflows/ci.yml`) runs ruff + the offline suite.
 - `python scripts/replay_trace.py <trace.jsonl>` — print a persisted audit trace's deterministic replay signature.
 - `python examples/run_d1.py` / `python examples/run_d3.py` — run each graph end-to-end **offline** (no API key, seed index, in-memory checkpointer).
 - `python scripts/fetch_attack.py [VERSION]` — download a pinned ATT&CK STIX bundle into `data/attack/` (gitignored, ~50MB). `ReferenceIndex.load_default()` then uses the newest bundle there, falling back to the 45-technique seed offline.
 - `python examples/run_live.py` — run D1+D3 against the real Anthropic API (key from `.env`), full ATT&CK index, and a **durable SQLite checkpointer** (`.threat_agents/`, gitignored).
+- `python examples/run_d1_from_threatdragon.py` — import an OWASP Threat Dragon `.json` model (`load_threat_dragon`) and run D1 on it offline.
+- `python eval/fcr/run_fcr.py [--live]` — **semantic-critic FCR harness** (05 §2.4/C5): labeled good/mutated trees → false-confirmation rate → does the critic clear its gate? `--live` uses the real Anthropic critic.
 - `python eval/spike/run_spike.py --seed` — run the **decision-gate spike** (miss-rate τ-sweep + re-ranker accuracy → falsifiable PROCEED/VETO). `--seed` forces the offline seed index; omit it to use full ATT&CK. The `LexicalRanker` is a placeholder; the real gate needs the Stage-2 frozen re-ranker + a historical corpus.
 
 **Key design invariants** (don't break these — they encode the architecture):
@@ -120,6 +122,13 @@ exist only as `NotImplementedError` stubs to mark intent.
   size bound) before reaching any LLM node. Honest limit: it's a hallucination/payload guard, not an
   on-graph-misdirection defense.
 - **ConfidenceRecord** is populated on both pipelines' outputs and carried into the gate + audit trace.
+- **D1 input:** `graphs/d1_stride/threat_dragon.py` imports OWASP Threat Dragon v2 models → `DFD`.
+  `crosses_trust_boundary` is computed geometrically (element center vs trust-boundary-box rect);
+  `is_ai_agent` from a `data.isAIAgent` convention; out-of-scope cells dropped.
+- **FCR harness** (`eval/fcr/`): measures the semantic critic's false-confirmation rate on
+  good-vs-mutated trees; the gate threshold that would flip `SEMANTIC_CRITIC_HAS_GATING_AUTHORITY`
+  is a calibration decision, not a code default. Stub critic → FCR 1.0 (stays shadow); real critic
+  clears on the synthetic set (needs real labels to be decision-grade).
 
 ## Conventions to preserve when editing artifacts
 

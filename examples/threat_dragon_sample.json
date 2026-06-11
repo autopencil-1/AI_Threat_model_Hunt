@@ -1,0 +1,26 @@
+{
+  "version": "2.4.0",
+  "summary": { "title": "Customer Portal", "owner": "demo", "description": "Sample for the D1 importer", "id": 0 },
+  "detail": {
+    "contributors": [],
+    "diagrams": [
+      {
+        "id": 0,
+        "title": "Main Request Data Flow",
+        "diagramType": "STRIDE",
+        "version": "2.4.0",
+        "cells": [
+          { "id": "n-box", "shape": "trust-boundary-box", "position": { "x": 200, "y": 0 }, "size": { "width": 500, "height": 500 }, "data": { "type": "tm.BoundaryBox", "name": "Trusted Zone" } },
+          { "id": "n-user", "shape": "actor", "position": { "x": 0, "y": 200 }, "size": { "width": 100, "height": 100 }, "data": { "type": "tm.Actor", "name": "Customer", "outOfScope": false } },
+          { "id": "n-web", "shape": "process", "position": { "x": 300, "y": 100 }, "size": { "width": 100, "height": 100 }, "data": { "type": "tm.Process", "name": "Web Service", "outOfScope": false } },
+          { "id": "n-ai", "shape": "process", "position": { "x": 500, "y": 100 }, "size": { "width": 100, "height": 100 }, "data": { "type": "tm.Process", "name": "Support Agent (LLM)", "isAIAgent": true, "outOfScope": false } },
+          { "id": "n-db", "shape": "store", "position": { "x": 300, "y": 300 }, "size": { "width": 100, "height": 100 }, "data": { "type": "tm.Store", "name": "Customer DB", "outOfScope": false } },
+          { "id": "n-legacy", "shape": "process", "position": { "x": 800, "y": 600 }, "size": { "width": 100, "height": 100 }, "data": { "type": "tm.Process", "name": "Legacy (out of scope)", "outOfScope": true } },
+          { "id": "f-login", "shape": "flow", "source": { "cell": "n-user" }, "target": { "cell": "n-web" }, "data": { "type": "tm.Flow", "name": "login", "protocol": "HTTPS" } },
+          { "id": "f-query", "shape": "flow", "source": { "cell": "n-web" }, "target": { "cell": "n-db" }, "data": { "type": "tm.Flow", "name": "db query" } },
+          { "id": "f-assist", "shape": "flow", "source": { "cell": "n-web" }, "target": { "cell": "n-ai" }, "data": { "type": "tm.Flow", "name": "assist request" } }
+        ]
+      }
+    ]
+  }
+}
