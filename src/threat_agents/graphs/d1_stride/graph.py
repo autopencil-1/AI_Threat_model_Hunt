@@ -16,19 +16,33 @@ from langgraph.types import Send, interrupt
 
 from ...common.audit import trace_entry
 from ...common.grounding.reference_index import ReferenceIndex
+from ...common.injection_boundary import IngestionBoundary
 from ...common.integrations.base import ApprovalQueueAdapter
 from ...common.llm import DEFAULT_MODEL, LLMClient, parse_json
-from ...common.schema import DFD, DFDElement, StrideCategory, Threat, ThreatModel, TraceNode
+from ...common.schema import (
+    DFD,
+    ConfidenceRecord,
+    CriticVerdict,
+    DFDElement,
+    Provenance,
+    StrideCategory,
+    Threat,
+    ThreatModel,
+    TraceNode,
+)
 from .critic import CoverageResult, coverage_critic
 from .stride_matrix import applicable_categories
 
 GRAPH = "D1-STRIDE"
 
 _SYS = (
-    "You are a STRIDE threat-modeling assistant. For the given DFD element, draft ONE concrete "
-    "threat per applicable STRIDE category. Output STRICT JSON: a list of objects with keys "
-    '"category","description","technique_ids","mitigation". "category" is one of S,T,R,I,D,E,A. '
-    '"technique_ids" are MITRE ATT&CK IDs (e.g. "T1190") or []. No prose outside the JSON.'
+    "You are a STRIDE threat-modeling assistant. For the given DFD element, address EVERY applicable "
+    "STRIDE category. For each, output one object with keys "
+    '"category","description","technique_ids","mitigation","severity","applicable". '
+    '"severity" is one of low|medium|high|critical. Set "applicable" to false (with a brief '
+    "justification in the description) ONLY if the category genuinely does not apply — never silently "
+    'skip a category. "category" is one of S,T,R,I,D,E,A; "technique_ids" are MITRE ATT&CK IDs or []. '
+    "Output a STRICT JSON list, no prose outside it."
 )
 
 
@@ -36,19 +50,23 @@ class D1State(TypedDict, total=False):
     run_id: str
     ref_index_version: str
     dfd: DFD
+    cti_context: Optional[str]
+    context: Optional[str]  # sanitized
     element: DFDElement  # per-worker payload
     threats: Annotated[list[Threat], operator.add]
     trace: Annotated[list[TraceNode], operator.add]
     coverage: CoverageResult
+    confidence: ConfidenceRecord
     disposition: dict
     ticket_id: Optional[str]
     threat_model: ThreatModel
 
 
-def _worker_prompt(el: DFDElement, cats, hint: str) -> str:
+def _worker_prompt(el: DFDElement, cats, hint: str, context: str) -> str:
     codes = ",".join(c.value for c in sorted(cats, key=lambda c: c.value))
+    ctx = f"Context (sanitized, untrusted):\n{context}\n\n" if context else ""
     return (
-        f"Element name: {el.name}\nElement type: {el.type.value}\nis_ai_agent: {el.is_ai_agent}\n"
+        f"{ctx}Element name: {el.name}\nElement type: {el.type.value}\nis_ai_agent: {el.is_ai_agent}\n"
         f"Applicable STRIDE categories: {codes}\n\n"
         f"{hint}\n\n"
         f'[[STRIDE element_id="{el.id}" categories="{codes}"]]'
@@ -61,31 +79,39 @@ def build_d1_graph(
     approval_queue: ApprovalQueueAdapter,
     checkpointer,
     model: str = DEFAULT_MODEL,
+    boundary: IngestionBoundary | None = None,
 ):
     hint = index.grounding_hint()
+    boundary = boundary or IngestionBoundary()
 
     def ingest(state: D1State):
         dfd = state["dfd"]
+        # Untrusted CTI context through the one ingestion boundary (05 §2.2).
+        sanitized = boundary.sanitize(state["cti_context"]).text if state.get("cti_context") else ""
         return {
             "ref_index_version": index.version,
+            "context": sanitized,
             "trace": [
                 trace_entry(
                     state["run_id"], index.version, GRAPH, "ingest", "loaded_dfd",
-                    {"elements": len(dfd.stride_elements())},
+                    {"elements": len(dfd.stride_elements()), "cti_context": bool(sanitized)},
                 )
             ],
         }
 
     def fan_out(state: D1State):
+        ctx = state.get("context", "")
         return [
-            Send("analyze_element", {"run_id": state["run_id"], "element": el})
+            Send("analyze_element", {"run_id": state["run_id"], "element": el, "context": ctx})
             for el in state["dfd"].stride_elements()
         ]
 
     def analyze_element(state: D1State):
         el = state["element"]
         cats = applicable_categories(el)
-        items = parse_json(llm.complete(_SYS, _worker_prompt(el, cats, hint), model=model))
+        items = parse_json(
+            llm.complete(_SYS, _worker_prompt(el, cats, hint, state.get("context", "")), model=model)
+        )
         threats: list[Threat] = []
         all_ids: list[str] = []
         for it in items:
@@ -105,6 +131,8 @@ def build_d1_graph(
                     description=it.get("description", ""),
                     technique_ids=tids,
                     mitigation=it.get("mitigation"),
+                    severity=it.get("severity"),
+                    applicable=bool(it.get("applicable", True)),
                 )
             )
         index.enforce_resolves(all_ids)  # technique-ID invariant — hard fail on unresolved
@@ -120,8 +148,16 @@ def build_d1_graph(
 
     def critic(state: D1State):
         cov = coverage_critic(state["dfd"], state["threats"])
+        applicable = [t for t in state["threats"] if t.applicable]
+        grounded = sum(1 for t in applicable if t.technique_ids)
+        confidence = ConfidenceRecord(
+            retrieval_relevance=(grounded / len(applicable)) if applicable else 0.0,
+            critic_verdict=CriticVerdict.PASS if cov.ok else CriticVerdict.FAIL,
+            provenance=Provenance.BASE,
+        )
         return {
             "coverage": cov,
+            "confidence": confidence,
             "trace": [
                 trace_entry(
                     state["run_id"], index.version, GRAPH, "coverage_critic",
@@ -145,11 +181,13 @@ def build_d1_graph(
         return {"threat_model": tm}
 
     def gate(state: D1State):
+        applicable = [t for t in state["threats"] if t.applicable]
         decision = interrupt(
             {
                 "summary": f"STRIDE threat model for '{state['dfd'].name}' — "
-                f"{len(state['threats'])} threats, coverage OK.",
+                f"{len(applicable)} threats ({len(state['threats']) - len(applicable)} N/A), coverage OK.",
                 "evidence": [t.model_dump() for t in state["threats"]],
+                "confidence": state["confidence"].model_dump(),
                 "note": "Surface evidence, not a verdict. You (the analyst) are the disposer. "
                 "Approve to publish.",
             }
@@ -171,7 +209,8 @@ def build_d1_graph(
         ticket = None
         if state.get("disposition", {}).get("approved"):
             ticket = approval_queue.submit(
-                {"type": "threat_model", "graph": GRAPH, "model": tm.model_dump()}
+                {"type": "threat_model", "graph": GRAPH, "model": tm.model_dump(),
+                 "confidence": state["confidence"].model_dump()}
             )
         return {
             "threat_model": tm,

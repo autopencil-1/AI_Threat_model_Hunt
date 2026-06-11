@@ -39,6 +39,7 @@ class DFDElement(BaseModel):
     name: str
     type: ElementType
     is_ai_agent: bool = False
+    crosses_trust_boundary: bool = False  # set on flow-elements that cross a boundary
 
 
 class DataFlow(BaseModel):
@@ -64,7 +65,13 @@ class DFD(BaseModel):
     def stride_elements(self) -> list[DFDElement]:
         """DFD elements AND data-flows — every one is a STRIDE-per-element target."""
         flow_elems = [
-            DFDElement(id=f.id, name=f.name, type=ElementType.DATA_FLOW) for f in self.flows
+            DFDElement(
+                id=f.id,
+                name=f.name,
+                type=ElementType.DATA_FLOW,
+                crosses_trust_boundary=f.crosses_trust_boundary,
+            )
+            for f in self.flows
         ]
         return list(self.elements) + flow_elems
 
@@ -76,6 +83,8 @@ class Threat(BaseModel):
     description: str
     technique_ids: list[str] = Field(default_factory=list)
     mitigation: Optional[str] = None
+    severity: Optional[str] = None  # low | medium | high | critical (PASTA-ish risk)
+    applicable: bool = True  # False = explicit, justified N/A determination (still "considered")
 
 
 class ThreatModel(BaseModel):
@@ -101,6 +110,7 @@ class AttackTreeNode(BaseModel):
     refinement: Refinement
     children: list["AttackTreeNode"] = Field(default_factory=list)
     technique_id: Optional[str] = None
+    value: Optional[float] = None  # propagated cost/feasibility (OR=min, AND/SAND=sum)
 
 
 AttackTreeNode.model_rebuild()

@@ -79,8 +79,10 @@ Stage 2+ and gated behind an offline decision spike (`eval/`, not yet built). St
 exist only as `NotImplementedError` stubs to mark intent.
 
 **Commands** (run from the project root):
-- `python -m pytest -q` — full suite (33 tests; pure-logic critics + STIX-loader + checkpointer + offline graph smoke tests). `pythonpath=src` is set in `pyproject.toml`.
+- `python -m pytest -q` — full suite (53 tests; pure-logic critics + tree-value propagation + STIX-loader + checkpointer + injection-boundary + spike + offline graph smoke tests). `pythonpath=["src","."]` is set in `pyproject.toml`.
 - `python -m pytest tests/test_attack_tree_critic.py -q` — a single test file.
+- `ruff check src tests eval examples scripts` — lint (F + I rules; config in `pyproject.toml`). CI (`.github/workflows/ci.yml`) runs ruff + the offline suite.
+- `python scripts/replay_trace.py <trace.jsonl>` — print a persisted audit trace's deterministic replay signature.
 - `python examples/run_d1.py` / `python examples/run_d3.py` — run each graph end-to-end **offline** (no API key, seed index, in-memory checkpointer).
 - `python scripts/fetch_attack.py [VERSION]` — download a pinned ATT&CK STIX bundle into `data/attack/` (gitignored, ~50MB). `ReferenceIndex.load_default()` then uses the newest bundle there, falling back to the 45-technique seed offline.
 - `python examples/run_live.py` — run D1+D3 against the real Anthropic API (key from `.env`), full ATT&CK index, and a **durable SQLite checkpointer** (`.threat_agents/`, gitignored).
@@ -107,6 +109,17 @@ exist only as `NotImplementedError` stubs to mark intent.
 - **Checkpointer:** `common/checkpointer.py` — `make_checkpointer("sqlite", path)` for durable,
   resumable runs (interrupts survive restarts); `"memory"` for tests. Temporal/Restate is the
   Stage-4 durable-execution dependency, not this.
+- **D3 recursion + values:** the attack-tree graph uses **true per-node `Send` recursion** via a
+  `frontier` router loop (each depth level is a superstep barrier — no in-worker recursion).
+  `values.py` propagates leaf cost deterministically (OR=min, AND/SAND=sum).
+- **D1 fidelity:** STRIDE applicability is trust-boundary-aware (a crossing data-flow adds `S`); an
+  explicit, justified **N/A determination** (`Threat.applicable=False`) counts as *considered* — a
+  coverage gap means a category was **not addressed**, not that it was deemed N/A. Threats carry `severity`.
+- **Injection boundary is wired in:** D1 `cti_context` and D3 `goal`/`context` pass through
+  `IngestionBoundary` in the ingest node (control-char strip, deterministic IP/email pseudonymization,
+  size bound) before reaching any LLM node. Honest limit: it's a hallucination/payload guard, not an
+  on-graph-misdirection defense.
+- **ConfidenceRecord** is populated on both pipelines' outputs and carried into the gate + audit trace.
 
 ## Conventions to preserve when editing artifacts
 

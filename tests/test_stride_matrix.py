@@ -33,3 +33,8 @@ def test_data_store_and_flow():
     flow = DFDElement(id="f", name="flow", type=ElementType.DATA_FLOW)
     assert applicable_categories(store) == frozenset({T, R, I, D})
     assert applicable_categories(flow) == frozenset({T, I, D})
+
+
+def test_flow_crossing_trust_boundary_adds_spoofing():
+    flow = DFDElement(id="f", name="flow", type=ElementType.DATA_FLOW, crosses_trust_boundary=True)
+    assert applicable_categories(flow) == frozenset({S, T, I, D})

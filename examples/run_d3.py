@@ -26,7 +26,8 @@ from threat_agents.graphs.d3_attack_tree import build_d3_graph  # noqa: E402
 
 def _print_tree(n: AttackTreeNode, depth: int = 0) -> None:
     tid = f"  [{n.technique_id}]" if n.technique_id else ""
-    print(f"{'  ' * depth}- ({n.refinement.value}) {n.goal}{tid}")
+    val = f"  cost={n.value}" if n.value is not None else ""
+    print(f"{'  ' * depth}- ({n.refinement.value}) {n.goal}{tid}{val}")
     for c in n.children:
         _print_tree(c, depth + 1)
 

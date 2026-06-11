@@ -23,7 +23,13 @@ from threat_agents.common.config import anthropic_default_model, load_env  # noq
 from threat_agents.common.grounding.reference_index import ReferenceIndex  # noqa: E402
 from threat_agents.common.integrations.stubs import StdoutApprovalQueue  # noqa: E402
 from threat_agents.common.llm import AnthropicLLM  # noqa: E402
-from threat_agents.common.schema import DFD, AttackTreeNode, DataFlow, DFDElement, ElementType  # noqa: E402
+from threat_agents.common.schema import (  # noqa: E402
+    DFD,
+    AttackTreeNode,
+    DataFlow,
+    DFDElement,
+    ElementType,
+)
 from threat_agents.graphs.d1_stride import build_d1_graph  # noqa: E402
 from threat_agents.graphs.d3_attack_tree import build_d3_graph  # noqa: E402
 

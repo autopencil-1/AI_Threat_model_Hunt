@@ -32,6 +32,8 @@ def stride_responder(system: str, user: str) -> str:
                 "description": f"{c}-class threat against {eid}",
                 "technique_ids": (["T1190"] if i == 0 else []),
                 "mitigation": "apply appropriate control",
+                "severity": "medium",
+                "applicable": True,
             }
         )
     return json.dumps(out)

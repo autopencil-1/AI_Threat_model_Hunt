@@ -47,8 +47,11 @@ def main() -> None:
     tm = final["threat_model"]
     print(f"\ncoverage_ok={tm.coverage_ok}  threats={len(tm.threats)}  ticket={final.get('ticket_id')}")
     for t in tm.threats:
-        print(f"  {t.element_id:5} [{t.category.value}] {t.description}  techniques={t.technique_ids}")
-    print(f"\ntrace nodes: {len(AuditTrace.number(final['trace']))}")
+        sev = f" sev={t.severity}" if t.severity else ""
+        na = "" if t.applicable else " [N/A]"
+        print(f"  {t.element_id:5} [{t.category.value}]{sev}{na} {t.description}  techniques={t.technique_ids}")
+    print(f"\nconfidence: {final['confidence'].model_dump()}")
+    print(f"trace nodes: {len(AuditTrace.number(final['trace']))}")
 
 
 if __name__ == "__main__":

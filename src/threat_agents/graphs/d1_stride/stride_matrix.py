@@ -24,7 +24,10 @@ APPLICABILITY: dict[ElementType, frozenset[StrideCategory]] = {
 
 
 def applicable_categories(element: DFDElement) -> frozenset[StrideCategory]:
-    base = APPLICABILITY[element.type]
+    cats = set(APPLICABILITY[element.type])
+    # A data flow crossing a trust boundary warrants spoofing analysis (authn across the boundary).
+    if element.type == ElementType.DATA_FLOW and element.crosses_trust_boundary:
+        cats.add(StrideCategory.SPOOFING)
     if element.is_ai_agent:  # ASTRIDE "A" extension (05 §2.1)
-        return base | {StrideCategory.AI_AGENT}
-    return base
+        cats.add(StrideCategory.AI_AGENT)
+    return frozenset(cats)
