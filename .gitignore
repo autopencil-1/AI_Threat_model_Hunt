@@ -25,3 +25,6 @@ data/
 
 # Durable checkpointer store
 .threat_agents/
+
+# Spike report output
+eval/spike/out/

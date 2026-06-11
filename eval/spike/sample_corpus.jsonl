@@ -1,0 +1,14 @@
+# SYNTHETIC sample corpus — wiring/demo only. Real corpora (historical incidents/CTI with known
+# outcomes) go in eval/corpora/ (gitignored). One item has empty ground_truth on purpose (a
+# genuine no-mapping / novel case) so the miss-rate metric is exercised.
+{"id": "inc-001", "finding": "Brute force: hundreds of failed login attempts and credential stuffing against the SSO portal", "ground_truth": ["T1110"], "tactic": "credential-access"}
+{"id": "inc-002", "finding": "Command and scripting interpreter abuse: PowerShell launched from a Word macro to download a payload", "ground_truth": ["T1059"], "tactic": "execution"}
+{"id": "inc-003", "finding": "Phishing email with a malicious link harvested employee credentials", "ground_truth": ["T1566"], "tactic": "initial-access"}
+{"id": "inc-004", "finding": "Exploit public-facing application: Log4Shell exploitation of the internet-facing web server", "ground_truth": ["T1190"], "tactic": "initial-access"}
+{"id": "inc-005", "finding": "OS credential dumping observed reading LSASS process memory", "ground_truth": ["T1003"], "tactic": "credential-access"}
+{"id": "inc-006", "finding": "Data encrypted for impact: files encrypted and a ransom note dropped", "ground_truth": ["T1486"], "tactic": "impact"}
+{"id": "inc-007", "finding": "Exfiltration over web service: archive uploaded to a public paste site", "ground_truth": ["T1567"], "tactic": "exfiltration"}
+{"id": "inc-008", "finding": "Create or modify system process: a malicious Windows service installed for persistence", "ground_truth": ["T1543"], "tactic": "persistence"}
+{"id": "inc-009", "finding": "Valid accounts: login with stolen legitimate VPN account credentials", "ground_truth": ["T1078"], "tactic": "initial-access"}
+{"id": "inc-010", "finding": "Steal web session cookie to bypass MFA on the webmail application", "ground_truth": ["T1539"], "tactic": "credential-access"}
+{"id": "inc-011", "finding": "Analyst observed a genuinely novel hands-on-keyboard tradecraft not described anywhere in the framework", "ground_truth": [], "note": "no-mapping / novel — exercises miss-rate"}

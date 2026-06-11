@@ -84,6 +84,7 @@ exist only as `NotImplementedError` stubs to mark intent.
 - `python examples/run_d1.py` / `python examples/run_d3.py` — run each graph end-to-end **offline** (no API key, seed index, in-memory checkpointer).
 - `python scripts/fetch_attack.py [VERSION]` — download a pinned ATT&CK STIX bundle into `data/attack/` (gitignored, ~50MB). `ReferenceIndex.load_default()` then uses the newest bundle there, falling back to the 45-technique seed offline.
 - `python examples/run_live.py` — run D1+D3 against the real Anthropic API (key from `.env`), full ATT&CK index, and a **durable SQLite checkpointer** (`.threat_agents/`, gitignored).
+- `python eval/spike/run_spike.py --seed` — run the **decision-gate spike** (miss-rate τ-sweep + re-ranker accuracy → falsifiable PROCEED/VETO). `--seed` forces the offline seed index; omit it to use full ATT&CK. The `LexicalRanker` is a placeholder; the real gate needs the Stage-2 frozen re-ranker + a historical corpus.
 
 **Key design invariants** (don't break these — they encode the architecture):
 - **Framework is the control flow; the LLM only fills bounded nodes.** Graphs depend on the

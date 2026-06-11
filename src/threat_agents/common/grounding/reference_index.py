@@ -33,6 +33,7 @@ class Technique:
     id: str
     name: str
     tactics: tuple[str, ...]
+    description: str = ""
 
 
 class ReferenceIndex:
@@ -62,6 +63,9 @@ class ReferenceIndex:
     def get(self, tid: str) -> Technique | None:
         base = self._resolved_id(tid)
         return self._t.get(base) if base else None
+
+    def all(self) -> list[Technique]:
+        return list(self._t.values())
 
     def resolve(self, tid: str) -> Technique:
         base = self._resolved_id(tid)
@@ -115,7 +119,9 @@ class ReferenceIndex:
     def from_seed(cls) -> "ReferenceIndex":
         data = json.loads(_SEED.read_text(encoding="utf-8"))
         techs = {
-            t["id"]: Technique(t["id"], t["name"], tuple(t.get("tactics", [])))
+            t["id"]: Technique(
+                t["id"], t["name"], tuple(t.get("tactics", [])), t.get("description", "")
+            )
             for t in data["techniques"]
         }
         return cls(version=data["version"], techniques=techs)
@@ -166,7 +172,7 @@ class ReferenceIndex:
                 for p in obj.get("kill_chain_phases", [])
                 if p.get("kill_chain_name") == "mitre-attack"
             )
-            techs[tid] = Technique(tid, obj.get("name", tid), tactics)
+            techs[tid] = Technique(tid, obj.get("name", tid), tactics, obj.get("description", "") or "")
         return cls(version=resolved_version, techniques=techs, content_hash=content_hash)
 
     @classmethod
