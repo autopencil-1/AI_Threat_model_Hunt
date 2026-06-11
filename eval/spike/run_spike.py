@@ -30,10 +30,11 @@ from threat_agents.common.grounding.reference_index import ReferenceIndex  # noq
 DEFAULT_TAUS = [round(0.1 * i, 2) for i in range(1, 10)]  # 0.1 .. 0.9
 
 DISCLAIMER = (
-    "BASELINE/SYNTHETIC — NOT a decision-grade result. The lexical ranker over the whole index is a "
-    "stand-in for the frozen non-LLM re-ranker over the KG frontier (Stage 2, B4), and the sample "
-    "corpus is synthetic. Plug in the real ranker + a historical corpus with known outcomes to make "
-    "this the actual decision gate (05 §A.2)."
+    "NOT a decision-grade result yet. The ranker runs over a lexical prefilter (a stand-in for the "
+    "Stage-2 KG-frontier traversal) on a SYNTHETIC corpus, and τ is UNCALIBRATED — score scales "
+    "differ per ranker, so a fixed τ is not comparable across backends (C4). Make it decision-grade "
+    "with: a historical corpus (known outcomes), the KG-frontier prefilter, and τ calibrated per "
+    "ranker against a held-out set (reliability diagram) before it gates anything (05 §A.2 / C4)."
 )
 
 
@@ -80,7 +81,7 @@ def run_spike(
 
     return {
         "index_version": index_version,
-        "ranker": f"{ranker.__class__.__name__} (baseline placeholder)",
+        "ranker": ranker.__class__.__name__,
         "n_items": len(items),
         "n_grounded": acc.n_grounded,
         "tau_sweep": [dataclasses.asdict(p) for p in sweep],
