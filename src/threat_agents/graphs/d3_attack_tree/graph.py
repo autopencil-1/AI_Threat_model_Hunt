@@ -59,11 +59,10 @@ class D3State(TypedDict, total=False):
     ticket_id: Optional[str]
 
 
-def _prompt(goal: str, depth: int, max_depth: int, node_id: str, vocab: str) -> str:
+def _prompt(goal: str, depth: int, max_depth: int, node_id: str, hint: str) -> str:
     return (
         f"Goal: {goal}\nCurrent depth: {depth}\nMax depth: {max_depth}\n\n"
-        "For a LEAF, set technique_id to ONE base ATT&CK ID from this list (or null):\n"
-        f"{vocab}\n\n"
+        f"For a LEAF, set technique_id to ONE technique (or null). {hint}\n\n"
         f'[[TREE id="{node_id}" depth="{depth}" max_depth="{max_depth}" goal="{goal}"]]'
     )
 
@@ -77,10 +76,10 @@ def build_d3_graph(
     critic_model: str = CRITIC_MODEL,
     max_depth: int = 3,
 ):
-    vocab = index.vocabulary()
+    hint = index.grounding_hint()
 
     def _refine(goal: str, depth: int, node_id: str):
-        data = parse_json(llm.complete(_SYS, _prompt(goal, depth, max_depth, node_id, vocab), model=model))
+        data = parse_json(llm.complete(_SYS, _prompt(goal, depth, max_depth, node_id, hint), model=model))
         ref = Refinement(data.get("refinement", "LEAF"))
         return ref, list(data.get("children") or []), data.get("technique_id")
 

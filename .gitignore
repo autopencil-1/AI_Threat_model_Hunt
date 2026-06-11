@@ -19,3 +19,9 @@ venv/
 # Eval data — historical corpora are pointers, never committed (05 §A.2)
 eval/corpora/*
 !eval/corpora/.gitkeep
+
+# Large data bundles (ATT&CK STIX ~50MB) — fetched via scripts/fetch_attack.py
+data/
+
+# Durable checkpointer store
+.threat_agents/

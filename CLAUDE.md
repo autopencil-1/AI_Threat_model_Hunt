@@ -79,9 +79,11 @@ Stage 2+ and gated behind an offline decision spike (`eval/`, not yet built). St
 exist only as `NotImplementedError` stubs to mark intent.
 
 **Commands** (run from the project root):
-- `python -m pytest -q` — full suite (24 tests; pure-logic critics + offline graph smoke tests). `pythonpath=src` is set in `pyproject.toml`.
+- `python -m pytest -q` — full suite (33 tests; pure-logic critics + STIX-loader + checkpointer + offline graph smoke tests). `pythonpath=src` is set in `pyproject.toml`.
 - `python -m pytest tests/test_attack_tree_critic.py -q` — a single test file.
-- `python examples/run_d1.py` / `python examples/run_d3.py` — run each graph end-to-end **offline** (no API key).
+- `python examples/run_d1.py` / `python examples/run_d3.py` — run each graph end-to-end **offline** (no API key, seed index, in-memory checkpointer).
+- `python scripts/fetch_attack.py [VERSION]` — download a pinned ATT&CK STIX bundle into `data/attack/` (gitignored, ~50MB). `ReferenceIndex.load_default()` then uses the newest bundle there, falling back to the 45-technique seed offline.
+- `python examples/run_live.py` — run D1+D3 against the real Anthropic API (key from `.env`), full ATT&CK index, and a **durable SQLite checkpointer** (`.threat_agents/`, gitignored).
 
 **Key design invariants** (don't break these — they encode the architecture):
 - **Framework is the control flow; the LLM only fills bounded nodes.** Graphs depend on the
@@ -96,6 +98,14 @@ exist only as `NotImplementedError` stubs to mark intent.
   resume with `Command(resume={"approved": ...})`. No approval → no side effect.
 - **Replayable audit:** trace records carry `ref_index_version`; `AuditTrace.replay_signature`
   excludes wall-clock `ts`. No `Date.now`/randomness in logic (stub ticket ids are a counter).
+- **Grounding index:** `ReferenceIndex` is versioned + content-addressed (`from_stix` derives the
+  version from the bundle's `x-mitre-collection`; sub-techniques resolve via their base). For a
+  small (seed) index, `grounding_hint()` inlines the vocabulary into worker prompts; for full
+  ATT&CK it switches to a short instruction (the invariant does the enforcing). This is Stage-1
+  retrieval-lite — Stage 2 replaces it with KG-frontier top-k retrieval.
+- **Checkpointer:** `common/checkpointer.py` — `make_checkpointer("sqlite", path)` for durable,
+  resumable runs (interrupts survive restarts); `"memory"` for tests. Temporal/Restate is the
+  Stage-4 durable-execution dependency, not this.
 
 ## Conventions to preserve when editing artifacts
 

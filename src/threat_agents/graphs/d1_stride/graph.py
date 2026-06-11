@@ -45,13 +45,12 @@ class D1State(TypedDict, total=False):
     threat_model: ThreatModel
 
 
-def _worker_prompt(el: DFDElement, cats, vocab: str) -> str:
+def _worker_prompt(el: DFDElement, cats, hint: str) -> str:
     codes = ",".join(c.value for c in sorted(cats, key=lambda c: c.value))
     return (
         f"Element name: {el.name}\nElement type: {el.type.value}\nis_ai_agent: {el.is_ai_agent}\n"
         f"Applicable STRIDE categories: {codes}\n\n"
-        "Cite technique_ids ONLY from this ATT&CK list (use base IDs; [] if none apply):\n"
-        f"{vocab}\n\n"
+        f"{hint}\n\n"
         f'[[STRIDE element_id="{el.id}" categories="{codes}"]]'
     )
 
@@ -63,7 +62,7 @@ def build_d1_graph(
     checkpointer,
     model: str = DEFAULT_MODEL,
 ):
-    vocab = index.vocabulary()
+    hint = index.grounding_hint()
 
     def ingest(state: D1State):
         dfd = state["dfd"]
@@ -86,7 +85,7 @@ def build_d1_graph(
     def analyze_element(state: D1State):
         el = state["element"]
         cats = applicable_categories(el)
-        items = parse_json(llm.complete(_SYS, _worker_prompt(el, cats, vocab), model=model))
+        items = parse_json(llm.complete(_SYS, _worker_prompt(el, cats, hint), model=model))
         threats: list[Threat] = []
         all_ids: list[str] = []
         for it in items:

@@ -10,14 +10,15 @@ same model here if that's all the key can reach.
 
 from __future__ import annotations
 
+import os
 import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
-from langgraph.checkpoint.memory import MemorySaver  # noqa: E402
 from langgraph.types import Command  # noqa: E402
 
+from threat_agents.common.checkpointer import make_checkpointer  # noqa: E402
 from threat_agents.common.config import anthropic_default_model, load_env  # noqa: E402
 from threat_agents.common.grounding.reference_index import ReferenceIndex  # noqa: E402
 from threat_agents.common.integrations.stubs import StdoutApprovalQueue  # noqa: E402
@@ -35,16 +36,18 @@ def _print_tree(n: AttackTreeNode, depth: int = 0) -> None:
 
 
 def main() -> None:
-    loaded = load_env()
-    if "ANTHROPIC_API_KEY" not in {**loaded}:
-        import os
-
-        if "ANTHROPIC_API_KEY" not in os.environ:
-            sys.exit("No ANTHROPIC_API_KEY found (.env or environment).")
+    load_env()
+    if "ANTHROPIC_API_KEY" not in os.environ:
+        sys.exit("No ANTHROPIC_API_KEY found (.env or environment).")
     model = anthropic_default_model()
-    print(f"Using model: {model}\n")
     llm = AnthropicLLM(default_model=model)
-    index = ReferenceIndex.from_seed()
+    index = ReferenceIndex.load_default()  # full ATT&CK if present in data/attack, else seed
+    print(f"Using model: {model}")
+    print(f"Index: {index.version}  ({len(index)} techniques, hash={index.content_hash})\n")
+
+    # Durable checkpointer (survives restarts; resumable interrupts). Unique thread per process run.
+    run_tag = str(os.getpid())
+    cp = make_checkpointer("sqlite")
 
     # ---- D1 (small DFD: 2 elements) ----
     print("===== D1 STRIDE (live) =====")
@@ -56,8 +59,8 @@ def main() -> None:
         ],
         flows=[DataFlow(id="f1", name="credentials", source="user", destination="auth", crosses_trust_boundary=True)],
     )
-    d1 = build_d1_graph(llm, index, StdoutApprovalQueue(), MemorySaver(), model=model)
-    cfg1 = {"configurable": {"thread_id": "live-d1"}}
+    d1 = build_d1_graph(llm, index, StdoutApprovalQueue(), cp, model=model)
+    cfg1 = {"configurable": {"thread_id": f"live-d1-{run_tag}"}}
     res = d1.invoke({"run_id": "live-d1", "dfd": dfd}, cfg1)
     if "__interrupt__" in res:
         print(f"[gate] {res['__interrupt__'][0].value['summary']}")
@@ -69,8 +72,8 @@ def main() -> None:
 
     # ---- D3 (shallow tree) ----
     print("\n===== D3 attack-tree (live) =====")
-    d3 = build_d3_graph(llm, index, StdoutApprovalQueue(), MemorySaver(), model=model, critic_model=model, max_depth=2)
-    cfg3 = {"configurable": {"thread_id": "live-d3"}}
+    d3 = build_d3_graph(llm, index, StdoutApprovalQueue(), cp, model=model, critic_model=model, max_depth=2)
+    cfg3 = {"configurable": {"thread_id": f"live-d3-{run_tag}"}}
     res = d3.invoke({"run_id": "live-d3", "goal": "Gain unauthorized access to the auth service"}, cfg3)
     if "__interrupt__" in res:
         sc = res["__interrupt__"][0].value["shadow_critic"]
