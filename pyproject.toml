@@ -18,6 +18,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
+# Frozen non-LLM Tier-1 re-ranker (B4). Heavy (torch); only needed to run the cross-encoder backend.
+crossencoder = ["sentence-transformers>=3,<6"]
 
 [tool.ruff]
 line-length = 100

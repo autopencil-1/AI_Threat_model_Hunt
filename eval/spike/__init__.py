@@ -11,7 +11,7 @@ A high miss-rate at sane τ, or a low re-ranker top-1, VETOES the tiered dispatc
 
 from .corpus import CorpusItem, load_corpus
 from .metrics import AccuracyReport, TauPoint, Verdict, gate_verdict, ranker_accuracy, tau_sweep
-from .ranker import LexicalRanker, Ranker
+from .ranker import CrossEncoderRanker, LexicalRanker, Ranker
 from .run_spike import run_spike
 
 __all__ = [
@@ -19,6 +19,7 @@ __all__ = [
     "load_corpus",
     "Ranker",
     "LexicalRanker",
+    "CrossEncoderRanker",
     "tau_sweep",
     "ranker_accuracy",
     "gate_verdict",

@@ -24,7 +24,7 @@ import json  # noqa: E402
 
 from eval.spike.corpus import SAMPLE_CORPUS, CorpusItem, load_corpus  # noqa: E402
 from eval.spike.metrics import gate_verdict, ranker_accuracy, tau_sweep  # noqa: E402
-from eval.spike.ranker import LexicalRanker, Ranker  # noqa: E402
+from eval.spike.ranker import CrossEncoderRanker, LexicalRanker, Ranker  # noqa: E402
 from threat_agents.common.grounding.reference_index import ReferenceIndex  # noqa: E402
 
 DEFAULT_TAUS = [round(0.1 * i, 2) for i in range(1, 10)]  # 0.1 .. 0.9
@@ -127,13 +127,16 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Run the offline decision-gate spike.")
     ap.add_argument("--corpus", default=str(SAMPLE_CORPUS))
     ap.add_argument("--seed", action="store_true", help="force the seed index (offline/deterministic)")
+    ap.add_argument("--reranker", choices=["lexical", "cross-encoder"], default="lexical",
+                    help="lexical baseline (default) or the frozen cross-encoder (needs the crossencoder extra)")
     ap.add_argument("--k", type=int, default=10)
     ap.add_argument("--out", default=None, help="write the full JSON report here")
     args = ap.parse_args()
 
     index = ReferenceIndex.from_seed() if args.seed else ReferenceIndex.load_default()
+    ranker = CrossEncoderRanker(index) if args.reranker == "cross-encoder" else LexicalRanker(index)
     items = load_corpus(args.corpus)
-    report = run_spike(items, LexicalRanker(index), index.version, k=args.k)
+    report = run_spike(items, ranker, index.version, k=args.k)
 
     _print_report(report)
     if args.out:
