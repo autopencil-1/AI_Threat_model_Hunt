@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets / local
+.env
+*.local
+.claude/settings.local.json
+
+# Eval data — historical corpora are pointers, never committed (05 §A.2)
+eval/corpora/*
+!eval/corpora/.gitkeep
