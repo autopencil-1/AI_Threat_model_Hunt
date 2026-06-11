@@ -25,8 +25,11 @@ python eval/spike/run_spike.py --corpus eval/corpora/incidents.jsonl --out eval/
 Pieces (each is the seam where the real component plugs in):
 - `corpus.py` — `CorpusItem` schema + JSONL loader. Empty `ground_truth` = a genuine no-mapping case
   (drives miss-rate; never silently dropped).
-- `ranker.py` — the `Ranker` protocol + `LexicalRanker` **baseline**. ⚠ The baseline is a stand-in;
-  the real gate uses the **frozen non-LLM re-ranker over the KG frontier** (Stage 2, B4).
+- `ranker.py` — the `Ranker` protocol + two backends: `LexicalRanker` (baseline) and
+  `CrossEncoderRanker` (the **frozen non-LLM cross-encoder**, B4 — a lexical prefilter shortlists,
+  then a pinned sentence-transformers cross-encoder re-ranks). The cross-encoder needs the
+  `crossencoder` extra (`pip install -e ".[crossencoder]"`); run with `--reranker cross-encoder`.
+  In Stage 2 the prefilter becomes the KG-frontier traversal rather than a lexical pass.
 - `metrics.py` — `tau_sweep`, `ranker_accuracy`, `gate_verdict` (pure, tested).
 - `sample_corpus.jsonl` — **synthetic** demo corpus (committed). Real corpora go in `eval/corpora/` (gitignored).
 

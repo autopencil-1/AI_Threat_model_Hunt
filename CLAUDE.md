@@ -88,7 +88,7 @@ exist only as `NotImplementedError` stubs to mark intent.
 - `python examples/run_live.py` — run D1+D3 against the real Anthropic API (key from `.env`), full ATT&CK index, and a **durable SQLite checkpointer** (`.threat_agents/`, gitignored).
 - `python examples/run_d1_from_threatdragon.py` — import an OWASP Threat Dragon `.json` model (`load_threat_dragon`) and run D1 on it offline.
 - `python eval/fcr/run_fcr.py [--live]` — **semantic-critic FCR harness** (05 §2.4/C5): labeled good/mutated trees → false-confirmation rate → does the critic clear its gate? `--live` uses the real Anthropic critic.
-- `python eval/spike/run_spike.py --seed` — run the **decision-gate spike** (miss-rate τ-sweep + re-ranker accuracy → falsifiable PROCEED/VETO). `--seed` forces the offline seed index; omit it to use full ATT&CK. The `LexicalRanker` is a placeholder; the real gate needs the Stage-2 frozen re-ranker + a historical corpus.
+- `python eval/spike/run_spike.py --seed [--reranker cross-encoder]` — run the **decision-gate spike** (miss-rate τ-sweep + re-ranker accuracy → falsifiable PROCEED/VETO). `--seed` forces the offline seed index; omit it for full ATT&CK. Default ranker is the `LexicalRanker` baseline; `--reranker cross-encoder` uses the frozen non-LLM cross-encoder (B4, needs `pip install -e ".[crossencoder]"`). The real gate still needs a historical corpus.
 
 **Key design invariants** (don't break these — they encode the architecture):
 - **Framework is the control flow; the LLM only fills bounded nodes.** Graphs depend on the
